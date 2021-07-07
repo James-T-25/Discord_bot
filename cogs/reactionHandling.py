@@ -43,7 +43,6 @@ class reaction_handler(commands.Cog):
 
             if lottery and emoji == "✋":
                 lottery_entrants = lottery[0]
-                print("reaction removed event processed")
                 lottery_entrants.remove(user)
 
             elif emoji in ["👍","👎"]:

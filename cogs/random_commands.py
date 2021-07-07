@@ -1,13 +1,8 @@
-import discord
-import random
-import http.client
-import json
-import asyncio
-import time, datetime
-import os
+import discord, random, http.client, json, asyncio, time, datetime, os
 from discord.ext import commands, tasks
 from Main import get_world
 from dotenv import load_dotenv
+from stuff.CustomExceptions import ArgumentError
 
 load_dotenv()
 
@@ -33,6 +28,26 @@ def get_def(l, n):
         )
     embed.add_field(name = "Example", value=exmple)
     return embed
+
+def duration_in_seconds(*args):
+    d,h,m,s = args
+    return int(d) * 86400 + int(h) * 3600 + int(m) * 60 + int(s)
+
+async def make_lottery(ctx, details):
+    name = ctx.author.name
+    avatar_url = ctx.author.avatar_url
+    desc = details[0]
+    dur_secs = details[1]
+    e = "<a:HypeDog:849671637053734963>"
+
+    embed = discord.Embed(title =f"{e}      𝓛𝓸𝓽𝓽𝓮𝓻𝔂     {e}",description = f"**Prize Description:** \n{desc}", colour=discord.Colour.red())
+    embed.set_author(name=f"Host: {name}", icon_url=avatar_url)
+    embed.set_footer(text="React with ✋ to enter the lottery")
+    embed.add_field(name="Duration:",value=datetime.timedelta(seconds=dur_secs))
+    embed.add_field(name="Winner:",value="TBD")
+
+    return embed
+
 
 class random_commands(commands.Cog):
     def __init__(self, client):
@@ -75,39 +90,40 @@ class random_commands(commands.Cog):
 
     @commands.command()
     @commands.cooldown(2, 10, commands.BucketType.guild)
-    async def lottery(self, ctx, *,message:str):
-        '''Use the command like, ```k.lottery <prize description>|<hours>:<minutes>:<seconds>``` to create a new lottery '''
-
-        if not self.carry_out_lottery_req:
-            await ctx.send("`Sorry for the inconvenience, but unable to carry out your request at the moment."+
-            "\nPlease try again in a little bit` <a:676472696481120326:849873811406848021>")    
+    async def lottery(self, ctx, *,message:str = None):
+        '''Use the command like, ```k.lottery <prize description>|<days>:<hours>:<minutes>:<seconds>``` to create a new lottery '''
+        if not message:
+            cmd = self.client.get_command("help")
+            await cmd.__call__(ctx, "lottery")
             return
-
-        s1 = message.split("|")
+    
         try:
-            desc = s1[0]
-            s2 = s1[1].split(":")
-            tlength = int(s2[0])*3600 + int(s2[1])*60 + int(s2[2])
-        except Exception as err:
-            print(err)
-            await ctx.send("Invalid command argument, the command is used like this: `(insert prize description) | hours:mins:secs`")
-            return
+            lottery_details = message.split("|")
+            lottery_details[1] = lottery_details[1].split(":")
+            
+            lottery_details[1] = duration_in_seconds(*lottery_details[1])
 
-        u = ctx.author.name
-        u_url = ctx.author.avatar_url
-        e = "<a:745170523922890813:849671637053734963>"
-        embed = discord.Embed(title =f"{e}      𝓛𝓸𝓽𝓽𝓮𝓻𝔂     {e}",description = f"**Prize Description:** \n{desc}", colour=discord.Colour.red())
-        embed.set_author(name=f"Host: {u}", icon_url=u_url)
-        embed.set_footer(text="React with ✋ to enter the lottery")
-        embed.add_field(name="Duration:",value=datetime.timedelta(seconds=tlength))
-        embed.add_field(name="Winner:",value="TBD")
+            if lottery_details[1] > 604800: raise ArgumentError("Duration cannot be longer than 7 days")
+            embed = make_lottery(ctx, lottery_details)
+
+        except Exception as error:
+            err_mssg = "Error :)"
+            if type(error) == IndexError:
+                err_mssg = "**Whoops, something went wrong!** ```Improper argument format```"
+
+            else:
+                err_mssg = f"**Whoops, something went wrong!** ```\n{error}```"
+
+            await ctx.channel.send(err_mssg)
+            return 
+
         mssg = await ctx.send(embed = embed)
         embed.add_field(name="Lottery ID:",value=mssg.id,inline=False)
 
         await mssg.edit(embed=embed)
         await mssg.add_reaction("✋")  
         
-        get_world().add_lottery(str(mssg.id),time.monotonic()+tlength,mssg)
+        get_world().add_lottery(str(mssg.id),time.monotonic()+lottery_details[1],mssg)
     
     @commands.command()
     async def end_lottery(self,ctx, message:str):
