@@ -7,9 +7,8 @@ class meritsystem(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @commands.command()
+    @commands.command(help = "Use the command like: ```k.profile <member>``` This brings up the profile of the mentioned")
     async def profile(self, ctx, member:discord.Member = None):
-        '''Use the command like, ```k.profile <member>``` to bring up the profile of the mentioned '''
         if member == None:
             cmd = self.client.get_command("help")
             await cmd.__call__(ctx, "profile")

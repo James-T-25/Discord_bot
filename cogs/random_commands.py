@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 from Main import get_world
 from dotenv import load_dotenv
 from stuff.CustomExceptions import ArgumentError
+from stuff.Converters import dur_secs_converter
 
 load_dotenv()
 
@@ -29,21 +30,16 @@ def get_def(l, n):
     embed.add_field(name = "Example", value=exmple)
     return embed
 
-def duration_in_seconds(*args):
-    d,h,m,s = args
-    return int(d) * 86400 + int(h) * 3600 + int(m) * 60 + int(s)
 
-async def make_lottery(ctx, details):
+def make_lottery(ctx, desc, duration):
     name = ctx.author.name
     avatar_url = ctx.author.avatar_url
-    desc = details[0]
-    dur_secs = details[1]
     e = "<a:HypeDog:849671637053734963>"
 
     embed = discord.Embed(title =f"{e}      𝓛𝓸𝓽𝓽𝓮𝓻𝔂     {e}",description = f"**Prize Description:** \n{desc}", colour=discord.Colour.red())
     embed.set_author(name=f"Host: {name}", icon_url=avatar_url)
     embed.set_footer(text="React with ✋ to enter the lottery")
-    embed.add_field(name="Duration:",value=datetime.timedelta(seconds=dur_secs))
+    embed.add_field(name="Duration:",value=datetime.timedelta(seconds=duration))
     embed.add_field(name="Winner:",value="TBD")
 
     return embed
@@ -63,10 +59,9 @@ class random_commands(commands.Cog):
         for home in self.client.guilds:
             self.chann_list.append(home.text_channels)
 
-    @commands.command()
+    @commands.command(help = "Use the command like: ```k.define <word>``` This obtains the definition of a word")
     async def define(self, ctx, *, message):
-        '''Use the command like, ```k.define <word>``` to obtain the definition for it'''
-
+        print(message)
         await ctx.trigger_typing()
 
         words = message.replace(" ","+")
@@ -88,44 +83,26 @@ class random_commands(commands.Cog):
         msg = await ctx.send(embed = embed)
         await msg.add_reaction("<:funny:796911682903212052>")
 
-    @commands.command()
-    @commands.cooldown(2, 10, commands.BucketType.guild)
-    async def lottery(self, ctx, *,message:str = None):
-        '''Use the command like, ```k.lottery <prize description>|<days>:<hours>:<minutes>:<seconds>``` to create a new lottery '''
-        if not message:
-            cmd = self.client.get_command("help")
-            await cmd.__call__(ctx, "lottery")
-            return
+    @commands.command(help = "Use the command like: ```k.lottery <prize description> <duration>```" + 
+    "Duration field must be filled out in the following format: \n<days>:<hours>:<minutes>:<seconds> \tThis creates a new lottery in the server.")
+    @commands.cooldown(2, 10, commands.BucketType.user)
+    async def lottery(self, ctx, desc:str, duration:dur_secs_converter):
     
-        try:
-            lottery_details = message.split("|")
-            lottery_details[1] = lottery_details[1].split(":")
-            
-            lottery_details[1] = duration_in_seconds(*lottery_details[1])
-
-            if lottery_details[1] > 604800: raise ArgumentError("Duration cannot be longer than 7 days")
-            embed = make_lottery(ctx, lottery_details)
-
-        except Exception as error:
-            err_mssg = "Error :)"
-            if type(error) == IndexError:
-                err_mssg = "**Whoops, something went wrong!** ```Improper argument format```"
-
-            else:
-                err_mssg = f"**Whoops, something went wrong!** ```\n{error}```"
-
-            await ctx.channel.send(err_mssg)
-            return 
-
+        if duration > 604800:
+            print("followed") 
+            raise ArgumentError("Duration of a lottery cannot be longer than 7 days")
+    
+        embed = make_lottery(ctx, desc, duration)
+    
         mssg = await ctx.send(embed = embed)
         embed.add_field(name="Lottery ID:",value=mssg.id,inline=False)
 
         await mssg.edit(embed=embed)
         await mssg.add_reaction("✋")  
         
-        get_world().add_lottery(str(mssg.id),time.monotonic()+lottery_details[1],mssg)
+        get_world().add_lottery(str(mssg.id),time.monotonic()+duration,mssg)
     
-    @commands.command()
+    @commands.command(help = "Use the command like: ```k.end <lottery id>``` This ends an active lottery.")
     async def end_lottery(self,ctx, message:str):
         lotteries = get_world().get_lotteries()
         lottery = lotteries.get(message)

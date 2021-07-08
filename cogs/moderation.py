@@ -12,18 +12,16 @@ class moderation(commands.Cog):
     async def on_ready(self):
         await self.client.change_presence(activity=discord.Game(name = "Nah I'm actually not|Use k.help to see what I can do 👀"))
 
-    @commands.command()
+    @commands.command(help = "Use the command like: ```k.clear <number>``` This deletes a specified number of messages in the channel")
     @commands.has_permissions(manage_messages = True)
     async def clear(self,ctx, amount = 1):
-        '''Use the command like, ```k.clear <number>``` to delete the corresponding number of messages in the channel'''
         message = str(amount)+" messages were deleted."
         await ctx.channel.purge(limit=amount+1)
         await ctx.send(message) 
 
-    @commands.command()
+    @commands.command(help = "Use the command like: ```k.blacklist <words separated by commas>``` This adds to the list of words not allowed in the server")
     @commands.has_permissions(manage_messages = True)
     async def blacklist(self, ctx, *,message):
-        '''Use the command like, ```k.blacklist <words separated by commas>``` to add to the list of words not allowed in the server '''
         call_location = get_world().get_guild(ctx.guild.id)
         successfully_added = []
         words = message.split(", ")
@@ -38,16 +36,14 @@ class moderation(commands.Cog):
         else:
             await ctx.channel.send(f"The word/s ```{message}``` have already been added.")
 
-    @commands.command()
+    @commands.command(help = "Use the command like: ```k.kick <member>``` Removes a user from the guild")
     @commands.has_permissions(kick_members = True)
     async def kick(self,ctx, member: discord.Member,*,reason = None):
-        '''Use the command like, ```k.kick <member>``` to remove the user from the guild'''
         await member.kick(reason=reason)
 
-    @commands.command()
+    @commands.command(help = "Use the command like: ```k.profanityFilter <on/off>``` This dictates whether blacklisted words be allowed on the server")
     @commands.has_permissions(kick_members = True, manage_messages = True)
     async def profanityFilter(self,ctx,message):
-        '''Use the command like, ```k.profanityFilter <on/off>``` type either to dictate whether blacklisted words be allowed on the server'''
         call_location = get_world().get_guild(ctx.guild.id)
         if message.lower() == 'on':
             call_location.set_psetting(True)
